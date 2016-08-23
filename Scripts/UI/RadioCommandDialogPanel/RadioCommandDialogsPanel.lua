@@ -272,6 +272,7 @@ local function selectAndTuneCommunicator(targetCommunicator)
 	if communicatorId ~= nil then
 		local communicator = data.communicators[communicatorId]
 		if communicator.interphone then
+		
 		else
 			local commDevice = base.GetDevice(communicatorId)
 			local freqModTbl = targetCommunicator:getFrequenciesModulations()
@@ -403,7 +404,9 @@ local function makeItemByCommunicator(pCommunicator, submenu)
 	else
 		commName = callsignStr
 	end
+	
 	base.assert(commName ~= nil)
+	
 	local dialogIsOpened = theRadioCommandDialogsPanel:getDialogFor(pCommunicator:tonumber()) ~= nil
 	
 	return {	name = commName,
@@ -437,7 +440,6 @@ end
 
 local function makeItemByCargo(pCargo, submenu)
 	base.assert(submenu ~= nil)
-	
 	local cargoName = pCargo:getCargoDisplayName().." - "..pCargo:getName()
 	
 	local dialogIsOpened = theRadioCommandDialogsPanel:getDialogFor(pCargo:tonumber()) ~= nil
@@ -568,6 +570,7 @@ end
 
 
 local function buildRecepientsMenuATC2(recepients, new_menu_name, child_menu_item)
+
 	if #recepients == 1 then
 		local communicator = recepients[1]:getCommunicator()
 		local item = makeItemByCommunicatorATC2(communicator, child_menu_item.submenu)
@@ -594,6 +597,7 @@ local function buildRecepientsMenuATC2(recepients, new_menu_name, child_menu_ite
 				end
 			end
 		end
+		
 		return new_menu_item
 	end
 end
@@ -625,6 +629,122 @@ local function buildRecepientsMenu(recepients, new_menu_name, child_menu_item)
 				end
 			end
 		end
+		
+		return new_menu_item
+	end
+end
+
+local function buildRecepientsMenu2(ATCs, new_menu_name, submenu_item, child_menu_item)
+	
+	base.print('BUILDRECEPIENTMENU2---------')
+	submenu_item.items[1].submenu.items={}
+	submenu_item.items[2].submenu.items={}
+	submenu_item.items[3].submenu.items={}
+	submenu_item.items[4].submenu.items={}
+	submenu_item.items[5].submenu.items={}
+	submenu_item.items[6].submenu.items={}
+	
+	local selfPoint = data.pUnit:getPosition().p
+	local function distanceSorter(lu, ru)
+			
+		local lpoint = lu:getPoint()
+		local ldist2 = (lpoint.x - selfPoint.x) * (lpoint.x - selfPoint.x) + (lpoint.z - selfPoint.z) * (lpoint.z - selfPoint.z)
+		
+		local rpoint = ru:getPoint()
+		local rdist2 = (rpoint.x - selfPoint.x) * (rpoint.x - selfPoint.x) + (rpoint.z - selfPoint.z) * (rpoint.z - selfPoint.z)
+		
+		return ldist2 < rdist2
+	end
+	
+	local function callsignSorter(l, r)
+		
+		local lcallsign = l:getCallsign()
+		local rcallsign = r:getCallsign()
+		
+		return lcallsign < rcallsign
+	
+	end
+	-- base.print('ready to call sort')
+	-- base.table.sort(recepients, callsignSorter)
+	local recepients = ATCs.vac
+	local nearest = ATCs.nearest
+	
+	if #recepients == 1 then
+		local communicator = recepients[1]:getCommunicator()
+		local item = makeItemByCommunicator(communicator, child_menu_item.submenu)
+		item.name = new_menu_name..' - '..item.name
+		return item
+	elseif #recepients > 1 then
+		local new_menu_item = {
+			name = new_menu_name,
+
+
+
+
+			submenu = submenu_item
+		}
+
+
+		local menuListSize = 10 -- max size of the menu
+		local maxATCItems = 3*menuListSize -- there are currently 3 pages for atc
+		local maxFARPItems = 1*menuListSize -- only one page for FARPS 
+		local maxShipItems = 1*menuListSize -- one page for ships
+		local maxNearestItems = 1*menuListSize -- one page for nearest
+		--base.print('maxATCItems:'..maxATCItems)
+		--base.print('recepientsSize:'..#recepients)
+		local ATCcounter = 0
+		local shipCounter = 0
+		local farpCounter = 0
+		local nearestCounter = 0
+		for index, recepient in base.pairs(recepients) do
+			
+			local communicator = recepient:getCommunicator()
+		
+			if communicator:hasTransiver() then
+
+				ATCindex = base.math.floor(ATCcounter/menuListSize)+2
+				local recepientItem = makeItemByCommunicator(communicator, child_menu_item.submenu)
+				--base.print(communicator:getUnit():getDesc().displayName)
+				if communicator:getUnit():hasAttribute("Airfields") and ATCcounter < maxATCItems then
+				--	base.print(index..' is an Airfield')
+					base.table.insert(new_menu_item.submenu.items[ATCindex].submenu.items, recepientItem)
+
+
+					ATCcounter = ATCcounter + 1 -- only add to counter if we are adding it to the menu
+			
+				elseif communicator:getUnit():hasAttribute("Ships") then
+				--		base.print(index..' is a ship')
+						base.table.insert(new_menu_item.submenu.items[6].submenu.items, recepientItem)
+						shipCounter = shipCounter + 1 -- only add to counter if we are adding it to the menu
+				
+				elseif communicator:getUnit():getDesc().displayName == "FARP" then
+				--	base.print(index..' is a FARP')
+					base.table.insert(new_menu_item.submenu.items[5].submenu.items, recepientItem)
+					farpCounter = farpCounter + 1 -- only add to counter if we are adding it to the menu
+				else 
+					base.print(index..' is Unknown')
+				end
+				
+				
+				
+				-- if ATCcounter >= maxATCItems then
+					-- break
+				-- end
+			end
+		end
+
+	
+		--- handle dynamic nearest menuitem here
+		for index, recepient in base.pairs(nearest) do
+			local communicator = recepient:getCommunicator()
+			if communicator:hasTransiver() and nearestCounter < maxNearestItems then
+				local recepientItem = makeItemByCommunicator(communicator, child_menu_item.submenu)
+				base.table.insert(new_menu_item.submenu.items[1].submenu.items, recepientItem)
+				nearestCounter = nearestCounter +1
+			end
+		end
+		
+		base.print('BUILDRECEPIENTMENU2:DONE----')
 		return new_menu_item
 	end
 end
@@ -908,6 +1028,7 @@ function initialize(pUnitIn, easyComm, intercomId, communicators)
 		sendMessage					= sendMessage,
 		buildRecepientsMenu 		= buildRecepientsMenu,
 		buildRecepientsMenuATC2		= buildRecepientsMenuATC2,
+		buildRecepientsMenu2		= buildRecepientsMenu2,
 		buildCargosMenu				= buildCargosMenu,
 		
 		staticParamsEvent			= staticParamsEvent,

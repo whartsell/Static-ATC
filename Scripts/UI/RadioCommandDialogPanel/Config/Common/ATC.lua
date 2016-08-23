@@ -32,7 +32,20 @@ menus['ATC'] = {
 		}
 	}
 }
-
+-- our custom menu for static atcs
+menus['VACATC'] = {
+	name = _('VACATC'),
+	items = {
+		{ name = _('Nearest'), submenu={ name = _('Nearest'),items = {}}},
+		{ name = _('Airports 1'), submenu={ name = _('Airports 1'),items = {}}},
+		{ name = _('Airports 2'), submenu={ name = _('Airports 2'),items = {}}},
+		{ name = _('Airports 3'), submenu={ name = _('Airports 3'),items = {}}},
+		{ name = _('FARPs'), submenu={ name = _('FARPs'),items = {}}},
+		{ name = _('Ships'), submenu={ name = _('Ships'),items = {}}},
+		
+	}
+}
+-- end change
 local function getATCs()
 		
 	local atcs = {}
@@ -76,14 +89,97 @@ local function getATCs()
 	return atcs
 end
 
-local function buildATCs(self, menu)
-	local ATCs = getATCs()
-	if 	not data.showingOnlyPresentRecepients or
-		getRecepientsState(ATCs) ~= RecepientState.VOID then
-		menu.items[mainMenuPos] = buildRecepientsMenu(ATCs, _('ATC'), { name = _('ATC'), submenu = menus['ATC'] })
+local function getVacATCs()
+	print('getVacATCs:START---------------')
+	local atcs = {}
+	
+	local neutralAirbases = coalition.getServiceProviders(coalition.side.NEUTRAL, coalition.service.ATC)
+	for i, airbase in pairs(neutralAirbases) do
+		table.insert(atcs, airbase)
+	end	
+	
+	local redAirbases = coalition.getServiceProviders(coalition.side.RED,coalition.service.ATC)
+	for i, airbase in pairs(redAirbases) do
+		table.insert(atcs, airbase)
+	end	
+	local blueAirbases = coalition.getServiceProviders(coalition.side.BLUE,coalition.service.ATC)
+	for i, airbase in pairs(blueAirbases) do
+		table.insert(atcs, airbase)
+	end	
+	
+	
+	
+	-- local selfCoalition = data.pUnit:getCoalition()
+	-- local ourAirbases = coalition.getServiceProviders(selfCoalition, coalition.service.ATC)
+	-- for i, airbase in pairs(ourAirbases) do
+		-- table.insert(atcs, airbase)
+	-- end
+	
+	
+	
+	
+	--[[
+	local enemyCoalition = selfCoalition == coalition.RED and coalition.BLUE or coalition.RED
+	local ourAirbases = coalition.getServiceProviders(enemycoalition. coalition.service.ATC)
+	--print("ourAirbases size = "..table.getn(ourAirbases))
+	for i, airbase in pairs(ourAirbases) do
+		if filterAirbaseType(atc) then
+			table.insert(atcs, airbase)
+		end
 	end
+	--]]
+		
+	local selfPoint = data.pUnit:getPosition().p
+	local function distanceSorter(lu, ru)
+			
+		local lpoint = lu:getPoint()
+		local ldist2 = (lpoint.x - selfPoint.x) * (lpoint.x - selfPoint.x) + (lpoint.z - selfPoint.z) * (lpoint.z - selfPoint.z)
+		
+		local rpoint = ru:getPoint()
+		local rdist2 = (rpoint.x - selfPoint.x) * (rpoint.x - selfPoint.x) + (rpoint.z - selfPoint.z) * (rpoint.z - selfPoint.z)
+		
+		return ldist2 < rdist2
+	end
+	
+	local function callsignSorter(l, r)
+		
+		local lcallsign = l:getCallsign()
+		local rcallsign = r:getCallsign()
+		
+		return lcallsign < rcallsign
+	
+	end
+	
+	table.sort(atcs, callsignSorter)
+	
+	
+	print('getVacATCs:END-----------------')
+	return atcs
+	
 end
 
+-- change for static ATC menu
+-- local function buildATCs(self, menu)
+	-- local ATCs = getATCs()
+	-- if 	not data.showingOnlyPresentRecepients or
+		-- getRecepientsState(ATCs) ~= RecepientState.VOID then
+		-- menu.items[mainMenuPos] = buildRecepientsMenu(ATCs, _('ATC'), { name = _('ATC'), submenu = menus['ATC'] })
+	-- end
+-- end
+
+local function buildATCs(self, menu)
+	print('BUILDATCS:START-------------')
+	local ATCs = {}
+	ATCs.vac = getVacATCs()
+	ATCs.nearest = getATCs()
+	if 	not data.showingOnlyPresentRecepients or
+		getRecepientsState(ATCs.vac) ~= RecepientState.VOID then
+		menu.items[mainMenuPos] = buildRecepientsMenu2(ATCs, _('ATC'),menus['VACATC'], { name = _('ATC'), submenu = menus['ATC'] })
+		
+	end
+	print('BUILDATCS:END---------------')
+end
+-- end of changes
 table.insert(data.rootItem.builders, buildATCs)
 
 
